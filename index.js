@@ -1,7 +1,8 @@
-import { Telegraf, Markup } from 'telegraf';
+import dotenv from 'dotenv';
 import { google } from 'googleapis';
 import fetch from 'node-fetch';
-import dotenv from 'dotenv';
+import { Readable } from 'stream';
+import { Markup, Telegraf } from 'telegraf';
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -28,8 +29,17 @@ function getColumnLetter(category) {
 
 async function uploadToDrive(buffer, filename) {
   const fileMetadata = { name: filename, parents: [FOLDER_ID] };
-  const media = { mimeType: 'audio/ogg', body: buffer };
-  const res = await drive.files.create({ resource: fileMetadata, media, fields: 'id' });
+  const media = {
+    mimeType: 'audio/ogg',
+    body: Readable.from(buffer)
+  };
+
+  const res = await drive.files.create({
+    resource: fileMetadata,
+    media,
+    fields: 'id',
+  });
+
   return `https://drive.google.com/file/d/${res.data.id}/view`;
 }
 
