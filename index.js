@@ -33,6 +33,12 @@ const sequenceMap = {
   16: '⑯', 17: '⑰', 18: '⑱', 19: '⑲', 20: '⑳',
 };
 
+const buttonMap = {
+  description: '📄 Ситуація',
+  emotion: '😢 Емоція',
+  thought: '💭 Думка',
+};
+
 function getColumnLetter(category) {
   return {
     description: 'B',
@@ -103,7 +109,7 @@ bot.hears('➕ New Entry', async (ctx) => {
     },
   });
   const rowIndex = res.data.updates.updatedRange.match(/\d+$/)[0];
-  sessionMap.set(ctx.chat.id, { lastRow: rowIndex });
+  sessionMap.set(ctx.chat.id, { lastRow: rowIndex, currentVoiceIndex: 1 });
 
   ctx.reply('🔄 Новий запис створено! Надішли голосове, а потім вибери категорію.');
 });
@@ -129,9 +135,9 @@ bot.on('voice', async (ctx) => {
   });
 
   ctx.reply('📥 Голосове отримано. Вибери категорію:', Markup.inlineKeyboard([
-    [Markup.button.callback('📄 Description', 'description')],
-    [Markup.button.callback('😢 Emotion', 'emotion')],
-    [Markup.button.callback('💭 Thought', 'thought')],
+    [Markup.button.callback(buttonMap.description, 'description')],
+    [Markup.button.callback(buttonMap.emotion, 'emotion')],
+    [Markup.button.callback(buttonMap.thought, 'thought')],
   ]));
 });
 
@@ -146,9 +152,9 @@ bot.action(['description', 'emotion', 'thought'], async (ctx) => {
   const transcription = await transcribeAudio(session.buffer);
   const column = getColumnLetter(category);
   const startRow = Number(session.lastRow);
+  const index = session.currentVoiceIndex;
 
   let row = startRow;
-  let index = 1;
 
   while (true) {
     const cell = `${column}${row}`;
@@ -160,13 +166,11 @@ bot.action(['description', 'emotion', 'thought'], async (ctx) => {
     if (!res.data.values || !res.data.values.length || !res.data.values[0][0]) break;
 
     row++;
-    index++;
-    if (index > 20) break;
   }
 
   const symbol = sequenceMap[index] || `${index})`;
-  const text = transcription ? ` (${transcription})` : '';
-  const content = `${symbol} 🎤 ${session.lastFileLink}${text}`;
+  const text = transcription ? `[${transcription}]` : '';
+  const content = `[${symbol}][${session.lastFileLink}]${text}`;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
@@ -179,9 +183,10 @@ bot.action(['description', 'emotion', 'thought'], async (ctx) => {
 
   sessionMap.set(chatId, {
     lastRow: session.lastRow,
+    currentVoiceIndex: index + 1,
   });
 
-  ctx.editMessageText('✅ Голосове додано до категорії.');
+  ctx.editMessageText(`✅ Голосове додано до категорії: ${buttonMap[category]}`);
 });
 
 bot.launch();
