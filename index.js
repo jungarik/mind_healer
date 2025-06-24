@@ -18,7 +18,8 @@ const auth = new google.auth.GoogleAuth({
 });
 const drive = google.drive({ version: 'v3', auth });
 const sheets = google.sheets({ version: 'v4', auth });
-const speech = google.speech({ version: 'v1p1beta1', auth });
+const speech = require('@google-cloud/speech');
+const speechClient = new speech.SpeechClient();
 
 const SPREADSHEET_ID = process.env.SHEET_ID;
 const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
@@ -57,7 +58,6 @@ async function uploadToDrive(buffer, filename) {
 }
 
 async function transcribeAudio(buffer) {
-  console.log('Buffer length (bytes):', buffer.length);
   if (buffer.length > 1024 * 1024) {
     console.warn('⚠️ Audio buffer too large for recognize');
     return '⚠️ Аудіо надто велике для розпізнавання';
@@ -71,19 +71,20 @@ async function transcribeAudio(buffer) {
       sampleRateHertz: 48000,
       languageCode: 'uk-UA',
       alternativeLanguageCodes: ['ru-RU'],
-      enableAutomaticPunctuation: true
-    },
+      enableAutomaticPunctuation: true,
+      model: 'default'
+    }
   };
 
   try {
-    const [response] = await speech.speech.recognize(request);
+    const [response] = await speechClient.recognize(request);
     const transcription = response.results
       .map(result => result.alternatives[0].transcript)
       .join('\n');
     return transcription || '';
-  } catch (error) {
-    console.error('Speech-to-text error:', error);
-    return '';
+  } catch (err) {
+    console.error('❌ Speech-to-Text error:', err.message);
+    return '⚠️ Неможливо розпізнати голосове';
   }
 }
 
