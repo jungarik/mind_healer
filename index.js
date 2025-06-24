@@ -162,8 +162,7 @@ bot.action(['description', 'emotion', 'thought'], async (ctx) => {
   }
 
   const text = transcription ? `${transcription}` : '';
-  const formattedLink = `=HYPERLINK("${session.lastFileLink}", "voice")`;
-  const content = `[${index}]${text}[${formattedLink}]`;
+  const content = `[${index}]${text}[${session.lastFileLink}]`;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
