@@ -1,3 +1,4 @@
+
 import dotenv from 'dotenv';
 import { google } from 'googleapis';
 import fetch from 'node-fetch';
@@ -9,15 +10,20 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const auth = new google.auth.GoogleAuth({
   keyFile: 'credentials.json',
-  scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'],
+  scopes: [
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/cloud-platform'
+  ],
 });
 const drive = google.drive({ version: 'v3', auth });
 const sheets = google.sheets({ version: 'v4', auth });
+const speech = google.speech({ version: 'v1p1beta1', auth });
 
 const SPREADSHEET_ID = process.env.SHEET_ID;
 const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
 
-const sessionMap = new Map(); // chatId → { lastRow, lastFileLink }
+const sessionMap = new Map(); // chatId → { lastRow, lastFileLink, buffer }
 
 const sequenceMap = {
   1: '①', 2: '②', 3: '③', 4: '④', 5: '⑤',
@@ -48,6 +54,31 @@ async function uploadToDrive(buffer, filename) {
   });
 
   return `https://drive.google.com/file/d/${res.data.id}/view`;
+}
+
+async function transcribeAudio(buffer) {
+  const audioBytes = buffer.toString('base64');
+  const request = {
+    audio: { content: audioBytes },
+    config: {
+      encoding: 'OGG_OPUS',
+      sampleRateHertz: 48000,
+      languageCode: 'uk-UA',
+      alternativeLanguageCodes: ['ru-RU'],
+      enableAutomaticPunctuation: true
+    },
+  };
+
+  try {
+    const [response] = await speech.speech.recognize(request);
+    const transcription = response.results
+      .map(result => result.alternatives[0].transcript)
+      .join('\n');
+    return transcription || '';
+  } catch (error) {
+    console.error('Speech-to-text error:', error);
+    return '';
+  }
 }
 
 bot.start((ctx) =>
@@ -87,6 +118,7 @@ bot.on('voice', async (ctx) => {
   sessionMap.set(chatId, {
     ...sessionMap.get(chatId),
     lastFileLink: driveLink,
+    buffer,
   });
 
   ctx.reply('📥 Голосове отримано. Вибери категорію:', Markup.inlineKeyboard([
@@ -96,13 +128,14 @@ bot.on('voice', async (ctx) => {
   ]));
 });
 
-bot.action(['desc', 'emotion', 'thought'], async (ctx) => {
+bot.action(['description', 'emotion', 'thought'], async (ctx) => {
   const chatId = ctx.chat.id;
   const session = sessionMap.get(chatId);
-  if (!session || !session.lastRow || !session.lastFileLink) {
+  if (!session || !session.lastRow || !session.lastFileLink || !session.buffer) {
     return ctx.reply('❗️ Немає голосового повідомлення для збереження.');
   }
 
+  const transcription = await transcribeAudio(session.buffer);
   const column = getColumnLetter(category);
   const startRow = Number(session.lastRow);
 
@@ -124,7 +157,8 @@ bot.action(['desc', 'emotion', 'thought'], async (ctx) => {
   }
 
   const symbol = sequenceMap[index] || `${index})`;
-  const content = `${symbol} 🎤 ${session.lastFileLink}`;
+  const text = transcription ? ` (${transcription})` : '';
+  const content = `${symbol} 🎤 ${session.lastFileLink}${text}`;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
