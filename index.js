@@ -88,7 +88,7 @@ async function transcribeAudio(buffer) {
 }
 
 bot.start((ctx) =>
-  ctx.reply('Привіт! Натисни кнопку, щоб створити новий запис.', Markup.keyboard([['➕ New Entry']]).resize())
+  ctx.reply('Привіт! Натисни кнопку, щоб створити новий запис.', Markup.keyboard([['➕ Новий Запис']]).resize())
 );
 
 bot.hears('➕ Новий Запис', async (ctx) => {
