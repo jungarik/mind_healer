@@ -57,6 +57,12 @@ async function uploadToDrive(buffer, filename) {
 }
 
 async function transcribeAudio(buffer) {
+  console.log('Buffer length (bytes):', buffer.length);
+  if (buffer.length > 1024 * 1024) {
+    console.warn('⚠️ Audio buffer too large for recognize');
+    return '⚠️ Аудіо надто велике для розпізнавання';
+  }
+
   const audioBytes = buffer.toString('base64');
   const request = {
     audio: { content: audioBytes },
