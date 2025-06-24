@@ -1,4 +1,5 @@
 
+import { SpeechClient } from '@google-cloud/speech';
 import dotenv from 'dotenv';
 import { google } from 'googleapis';
 import fetch from 'node-fetch';
@@ -18,8 +19,7 @@ const auth = new google.auth.GoogleAuth({
 });
 const drive = google.drive({ version: 'v3', auth });
 const sheets = google.sheets({ version: 'v4', auth });
-const speech = require('@google-cloud/speech');
-const speechClient = new speech.SpeechClient();
+const speechClient = new SpeechClient();
 
 const SPREADSHEET_ID = process.env.SHEET_ID;
 const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
