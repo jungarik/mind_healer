@@ -19,6 +19,13 @@ const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
 
 const sessionMap = new Map(); // chatId → { lastRow, lastFileLink }
 
+const sequenceMap = {
+  1: '①', 2: '②', 3: '③', 4: '④', 5: '⑤',
+  6: '⑥', 7: '⑦', 8: '⑧', 9: '⑨', 10: '⑩',
+  11: '⑪', 12: '⑫', 13: '⑬', 14: '⑭', 15: '⑮',
+  16: '⑯', 17: '⑰', 18: '⑱', 19: '⑲', 20: '⑳',
+};
+
 function getColumnLetter(category) {
   return {
     description: 'B',
@@ -83,7 +90,7 @@ bot.on('voice', async (ctx) => {
   });
 
   ctx.reply('📥 Голосове отримано. Вибери категорію:', Markup.inlineKeyboard([
-    [Markup.button.callback('📄 Description', 'desc')],
+    [Markup.button.callback('📄 Description', 'description')],
     [Markup.button.callback('😢 Emotion', 'emotion')],
     [Markup.button.callback('💭 Thought', 'thought')],
   ]));
@@ -96,15 +103,35 @@ bot.action(['desc', 'emotion', 'thought'], async (ctx) => {
     return ctx.reply('❗️ Немає голосового повідомлення для збереження.');
   }
 
-  const columnLetter = getColumnLetter(ctx.match[0].replace('desc', 'description'));
-  const cell = `${columnLetter}${session.lastRow}`;
+  const column = getColumnLetter(category);
+  const startRow = Number(session.lastRow);
+
+  let row = startRow;
+  let index = 1;
+
+  while (true) {
+    const cell = `${column}${row}`;
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Sheet1!${cell}`,
+    });
+
+    if (!res.data.values || !res.data.values.length || !res.data.values[0][0]) break;
+
+    row++;
+    index++;
+    if (index > 20) break;
+  }
+
+  const symbol = sequenceMap[index] || `${index})`;
+  const content = `${symbol} 🎤 ${session.lastFileLink}`;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
-    range: `Sheet1!${cell}`,
+    range: `Sheet1!${column}${row}`,
     valueInputOption: 'RAW',
     requestBody: {
-      values: [[session.lastFileLink]],
+      values: [[content]],
     },
   });
 
