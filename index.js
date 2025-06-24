@@ -135,6 +135,7 @@ bot.action(['description', 'emotion', 'thought'], async (ctx) => {
     return ctx.reply('❗️ Немає голосового повідомлення для збереження.');
   }
 
+  const category = ctx.match[0];
   const transcription = await transcribeAudio(session.buffer);
   const column = getColumnLetter(category);
   const startRow = Number(session.lastRow);
