@@ -27,7 +27,7 @@ const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
 const sessionMap = new Map(); // chatId → { lastRow, lastFileLink, buffer }
 
 const buttonMap = {
-  description: '📄 Ситуація',
+  description: '📄 Опис',
   emotion: '😢 Емоція',
   thought: '💭 Думка',
 };
@@ -91,7 +91,7 @@ bot.start((ctx) =>
   ctx.reply('Привіт! Натисни кнопку, щоб створити новий запис.', Markup.keyboard([['➕ New Entry']]).resize())
 );
 
-bot.hears('➕ New Entry', async (ctx) => {
+bot.hears('➕ Новий Запис', async (ctx) => {
   const date = new Date().toISOString();
   const res = await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
@@ -110,7 +110,7 @@ bot.hears('➕ New Entry', async (ctx) => {
 bot.on('voice', async (ctx) => {
   const chatId = ctx.chat.id;
   if (!sessionMap.has(chatId)) {
-    return ctx.reply('❗️ Спочатку натисни "➕ New Entry", щоб створити новий запис.');
+    return ctx.reply('❗️ Спочатку натисни "➕ Новий Запис", щоб створити новий запис.');
   }
 
   const file = await ctx.telegram.getFile(ctx.message.voice.file_id);
@@ -161,8 +161,9 @@ bot.action(['description', 'emotion', 'thought'], async (ctx) => {
     row++;
   }
 
-  const text = transcription ? `[${transcription}]` : '';
-  const content = `[${index}][${session.lastFileLink}]${text}`;
+  const text = transcription ? `${transcription}` : '';
+  const formattedLink = `=HYPERLINK("${session.lastFileLink}", "voice")`;
+  const content = `[${index}]${text}[${formattedLink}]`;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
